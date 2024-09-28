@@ -109,11 +109,14 @@ resource "aws_vpc" "eks_vpc" {
   }
 }
 
+# Subnets com IP público automaticamente atribuído
 resource "aws_subnet" "eks_subnets" {
   count             = 2
   cidr_block        = cidrsubnet(aws_vpc.eks_vpc.cidr_block, 8, count.index)
   vpc_id            = aws_vpc.eks_vpc.id
   availability_zone = element(data.aws_availability_zones.available.names, count.index)
+  
+  map_public_ip_on_launch = true  # Habilitar atribuição automática de IP público
 
   tags = {
     Name = "eks-subnet-${count.index + 1}"
