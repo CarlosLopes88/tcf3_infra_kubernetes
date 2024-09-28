@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: node-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: node-app
+  template:
+    metadata:
+      labels:
+        app: node-app
+    spec:
+      containers:
+      - name: node-app
+        imagePullPolicy: Never
+        image: tech_challenge_2_fase-node_app:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: MONGO_USERNAME
+          value: "admin"
+        - name: MONGO_PASSWORD
+          value: "password"
+        - name: MONGO_HOST
+          value: "mongodb"
+        - name: MONGO_PORT
+          value: "27017"
+        - name: MONGO_DATABASE
+          value: "order_system"
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+          requests:
+            memory: "64Mi"
+            cpu: "250m"
