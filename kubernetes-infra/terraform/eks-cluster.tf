@@ -2,13 +2,51 @@ provider "aws" {
   region = "us-east-1"
 }
 
-# Verificando se a Role do cluster EKS já existe
+# Data source para pegar uma Role EKS existente (se existir)
 data "aws_iam_role" "existing_eks_role" {
   name = "eks-cluster-role"
 }
 
+# Criação do cluster EKS
+resource "aws_eks_cluster" "eks_cluster" {
+  name     = "my-eks-cluster"
+
+  # Se a role existir, use ela, caso contrário, crie uma nova
+  role_arn = length(data.aws_iam_role.existing_eks_role.arn) > 0 ? data.aws_iam_role.existing_eks_role.arn : aws_iam_role.eks_role.arn
+
+  vpc_config {
+    subnet_ids = aws_subnet.eks_subnets[*].id
+  }
+
+  version                  = "1.27"
+  enabled_cluster_log_types = ["api", "audit", "authenticator"]
+
+  depends_on = [aws_iam_role_policy_attachment.eks_policy_attach]
+}
+
+# Criação do grupo de nós EKS
+resource "aws_eks_node_group" "eks_node_group" {
+  cluster_name    = aws_eks_cluster.eks_cluster.name
+  node_group_name = "eks-node-group"
+  node_role_arn   = length(data.aws_iam_role.existing_node_role.arn) > 0 ? data.aws_iam_role.existing_node_role.arn : aws_iam_role.eks_node_role.arn
+  subnet_ids      = aws_subnet.eks_subnets[*].id
+
+  scaling_config {
+    desired_size = 1
+    max_size     = 1
+    min_size     = 1
+  }
+
+  ami_type       = "AL2_x86_64"
+  instance_types = ["t2.micro"]
+  disk_size      = 8
+
+  depends_on = [aws_eks_cluster.eks_cluster]
+}
+
+# IAM Role para o cluster EKS (criando se não existir)
 resource "aws_iam_role" "eks_role" {
-  count = length(try(data.aws_iam_role.existing_eks_role.id, [])) == 0 ? 1 : 0
+  count = length(data.aws_iam_role.existing_eks_role.arn) == 0 ? 1 : 0
   name  = "eks-cluster-role"
 
   assume_role_policy = jsonencode({
@@ -25,13 +63,16 @@ resource "aws_iam_role" "eks_role" {
   })
 }
 
-# Verificando se a Role do Node Group já existe
-data "aws_iam_role" "existing_node_role" {
-  name = "eks-node-group-role"
+# Anexando a política necessária para o cluster EKS
+resource "aws_iam_role_policy_attachment" "eks_policy_attach" {
+  count      = length(data.aws_iam_role.existing_eks_role.arn) == 0 ? 1 : 0
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
+  role       = aws_iam_role.eks_role.name
 }
 
+# IAM Role para o Node Group (EC2) do EKS (criando se não existir)
 resource "aws_iam_role" "eks_node_role" {
-  count = length(try(data.aws_iam_role.existing_node_role.id, [])) == 0 ? 1 : 0
+  count = length(data.aws_iam_role.existing_node_role.arn) == 0 ? 1 : 0
   name  = "eks-node-group-role"
 
   assume_role_policy = jsonencode({
@@ -48,68 +89,26 @@ resource "aws_iam_role" "eks_node_role" {
   })
 }
 
-# Anexando a política necessária para o cluster EKS
-resource "aws_iam_role_policy_attachment" "eks_policy_attach" {
-  count      = length(try(data.aws_iam_role.existing_eks_role.id, [])) == 0 ? 1 : 0
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
-  role       = coalesce(data.aws_iam_role.existing_eks_role.name, aws_iam_role.eks_role[count.index].name)
-}
-
 # Anexando as políticas necessárias para o Node Group
 resource "aws_iam_role_policy_attachment" "eks_worker_node_policy" {
-  count      = length(try(data.aws_iam_role.existing_node_role.id, [])) == 0 ? 1 : 0
+  count      = length(data.aws_iam_role.existing_node_role.arn) == 0 ? 1 : 0
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
-  role       = coalesce(data.aws_iam_role.existing_node_role.name, aws_iam_role.eks_node_role[count.index].name)
+  role       = aws_iam_role.eks_node_role.name
 }
 
 resource "aws_iam_role_policy_attachment" "eks_cni_policy" {
-  count      = length(try(data.aws_iam_role.existing_node_role.id, [])) == 0 ? 1 : 0
+  count      = length(data.aws_iam_role.existing_node_role.arn) == 0 ? 1 : 0
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
-  role       = coalesce(data.aws_iam_role.existing_node_role.name, aws_iam_role.eks_node_role[count.index].name)
+  role       = aws_iam_role.eks_node_role.name
 }
 
 resource "aws_iam_role_policy_attachment" "eks_ec2_container_registry_policy" {
-  count      = length(try(data.aws_iam_role.existing_node_role.id, [])) == 0 ? 1 : 0
+  count      = length(data.aws_iam_role.existing_node_role.arn) == 0 ? 1 : 0
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
-  role       = coalesce(data.aws_iam_role.existing_node_role.name, aws_iam_role.eks_node_role[count.index].name)
+  role       = aws_iam_role.eks_node_role.name
 }
 
-# Definindo o cluster EKS
-resource "aws_eks_cluster" "eks_cluster" {
-  name     = "my-eks-cluster"
-  role_arn = coalesce(data.aws_iam_role.existing_eks_role.arn, aws_iam_role.eks_role[0].arn)
-
-  vpc_config {
-    subnet_ids = aws_subnet.eks_subnets[*].id
-  }
-
-  version                  = "1.27"
-  enabled_cluster_log_types = ["api", "audit", "authenticator"]
-
-  depends_on = [aws_iam_role_policy_attachment.eks_policy_attach]
-}
-
-# Definindo o Node Group do EKS
-resource "aws_eks_node_group" "eks_node_group" {
-  cluster_name    = aws_eks_cluster.eks_cluster.name
-  node_group_name = "eks-node-group"
-  node_role_arn   = coalesce(data.aws_iam_role.existing_node_role.arn, aws_iam_role.eks_node_role[0].arn)
-  subnet_ids      = aws_subnet.eks_subnets[*].id
-
-  scaling_config {
-    desired_size = 1
-    max_size     = 1
-    min_size     = 1
-  }
-
-  ami_type       = "AL2_x86_64"
-  instance_types = ["t2.micro"]
-  disk_size      = 8
-
-  depends_on = [aws_eks_cluster.eks_cluster]
-}
-
-# Criação da VPC
+# Subnets e VPC (se já existirem, usar os valores existentes)
 resource "aws_vpc" "eks_vpc" {
   cidr_block = "10.0.0.0/16"
   tags = {
