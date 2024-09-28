@@ -7,12 +7,16 @@ data "aws_iam_role" "existing_eks_role" {
   name = "eks-cluster-role"
 }
 
+data "aws_iam_role" "existing_node_role" {
+  name = "eks-node-group-role"
+}
+
 # Criação do cluster EKS
 resource "aws_eks_cluster" "eks_cluster" {
   name     = "my-eks-cluster"
 
   # Se a role existir, use ela, caso contrário, crie uma nova
-  role_arn = length(data.aws_iam_role.existing_eks_role.arn) > 0 ? data.aws_iam_role.existing_eks_role.arn : aws_iam_role.eks_role.arn
+  role_arn = coalesce(data.aws_iam_role.existing_eks_role.arn, aws_iam_role.eks_role.arn)
 
   vpc_config {
     subnet_ids = aws_subnet.eks_subnets[*].id
@@ -28,7 +32,7 @@ resource "aws_eks_cluster" "eks_cluster" {
 resource "aws_eks_node_group" "eks_node_group" {
   cluster_name    = aws_eks_cluster.eks_cluster.name
   node_group_name = "eks-node-group"
-  node_role_arn   = length(data.aws_iam_role.existing_node_role.arn) > 0 ? data.aws_iam_role.existing_node_role.arn : aws_iam_role.eks_node_role.arn
+  node_role_arn   = coalesce(data.aws_iam_role.existing_node_role.arn, aws_iam_role.eks_node_role.arn)
   subnet_ids      = aws_subnet.eks_subnets[*].id
 
   scaling_config {
@@ -67,7 +71,7 @@ resource "aws_iam_role" "eks_role" {
 resource "aws_iam_role_policy_attachment" "eks_policy_attach" {
   count      = length(data.aws_iam_role.existing_eks_role.arn) == 0 ? 1 : 0
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
-  role       = aws_iam_role.eks_role.name
+  role       = aws_iam_role.eks_role[0].name
 }
 
 # IAM Role para o Node Group (EC2) do EKS (criando se não existir)
@@ -93,19 +97,19 @@ resource "aws_iam_role" "eks_node_role" {
 resource "aws_iam_role_policy_attachment" "eks_worker_node_policy" {
   count      = length(data.aws_iam_role.existing_node_role.arn) == 0 ? 1 : 0
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
-  role       = aws_iam_role.eks_node_role.name
+  role       = aws_iam_role.eks_node_role[0].name
 }
 
 resource "aws_iam_role_policy_attachment" "eks_cni_policy" {
   count      = length(data.aws_iam_role.existing_node_role.arn) == 0 ? 1 : 0
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
-  role       = aws_iam_role.eks_node_role.name
+  role       = aws_iam_role.eks_node_role[0].name
 }
 
 resource "aws_iam_role_policy_attachment" "eks_ec2_container_registry_policy" {
   count      = length(data.aws_iam_role.existing_node_role.arn) == 0 ? 1 : 0
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
-  role       = aws_iam_role.eks_node_role.name
+  role       = aws_iam_role.eks_node_role[0].name
 }
 
 # Subnets e VPC (se já existirem, usar os valores existentes)
