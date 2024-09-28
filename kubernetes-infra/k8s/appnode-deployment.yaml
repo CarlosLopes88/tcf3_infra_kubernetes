@@ -15,7 +15,7 @@ spec:
       containers:
       - name: node-app
         imagePullPolicy: Never
-        image: tech_challenge_2_fase-node_app:latest
+        image: <aws-account-id>.dkr.ecr.<regiao>.amazonaws.com/order-system-app:latest
         ports:
         - containerPort: 3000
         env:
