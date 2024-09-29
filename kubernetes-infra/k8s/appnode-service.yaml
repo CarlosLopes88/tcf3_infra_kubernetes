@@ -3,10 +3,10 @@ kind: Service
 metadata:
   name: node-app-service
 spec:
-  type: NodePort
+  type: LoadBalancer  # Alterado para LoadBalancer
   selector:
     app: node-app
   ports:
   - port: 3000
     targetPort: 3000
-    nodePort: 30010
+    nodePort: 30010  # Pode ser removido se não estiver utilizando NodePort
