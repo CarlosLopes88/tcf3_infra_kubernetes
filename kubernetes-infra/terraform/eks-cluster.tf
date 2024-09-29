@@ -26,13 +26,13 @@ resource "aws_eks_node_group" "eks_node_group" {
   subnet_ids      = aws_subnet.eks_subnets[*].id
 
   scaling_config {
-    desired_size = 1
-    max_size     = 1
+    desired_size = 2
+    max_size     = 5
     min_size     = 1
   }
 
   ami_type        = "AL2_x86_64"
-  instance_types  = ["t2.micro"]
+  instance_types  = ["t2.small"]  # Ajuste conforme a necessidade
   disk_size       = 8
 
   depends_on = [aws_eks_cluster.eks_cluster]
