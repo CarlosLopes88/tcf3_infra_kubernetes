@@ -1,5 +1,6 @@
-name: Deploy EKS Infrastructure
+name: Deploy EKS Infrastructure  # Nome do workflow de GitHub Actions para o deploy da infraestrutura EKS.
 
+# O workflow será acionado quando houver um push na branch 'main'
 on:
   push:
     branches:
@@ -7,23 +8,29 @@ on:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest  # O job será executado em um ambiente Ubuntu na versão mais recente.
+
     steps:
+
+    # 1. Checkout do código do repositório
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v2  # Ação para fazer o checkout do código do repositório na versão 2.
 
+    # 2. Configura o Terraform no ambiente
     - name: Setup Terraform
-      uses: hashicorp/setup-terraform@v1
+      uses: hashicorp/setup-terraform@v1  # Usa a ação oficial para configurar o Terraform.
       with:
-        terraform_version: 1.5.0
+        terraform_version: 1.5.0  # Define a versão do Terraform que será usada como 1.5.0.
 
+    # 3. Inicializa o Terraform no diretório 'kubernetes-infra/terraform'
     - name: Terraform Init
-      run: terraform init
-      working-directory: ./kubernetes-infra/terraform
+      run: terraform init  # Executa o comando 'terraform init' para inicializar o Terraform.
+      working-directory: ./kubernetes-infra/terraform  # Define o diretório onde o Terraform será inicializado, que contém a infraestrutura do Kubernetes.
 
+    # 4. Aplica as configurações do Terraform para provisionar a infraestrutura do EKS
     - name: Terraform Apply
-      run: terraform apply -auto-approve
-      working-directory: ./kubernetes-infra/terraform
-      env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      run: terraform apply -auto-approve  # Executa o comando 'terraform apply' para aplicar as configurações sem pedir confirmação (-auto-approve).
+      working-directory: ./kubernetes-infra/terraform  # Define o diretório onde o Terraform será aplicado.
+      env:  # Define as variáveis de ambiente necessárias para autenticar na AWS.
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}  # Variável de ambiente que contém o ID da chave de acesso da AWS, armazenado nos secrets do GitHub.
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}  # Variável de ambiente que contém a chave secreta da AWS, também armazenada nos secrets.
