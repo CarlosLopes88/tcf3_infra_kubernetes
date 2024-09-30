@@ -33,4 +33,5 @@ jobs:
       working-directory: ./kubernetes-infra/terraform  # Define o diretório onde o Terraform será aplicado.
       env:  # Define as variáveis de ambiente necessárias para autenticar na AWS.
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}  # Variável de ambiente que contém o ID da chave de acesso da AWS, armazenado nos secrets do GitHub.
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}  # Variável de ambiente que contém a chave secreta da AWS, também armazenada nos secrets.
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}  # Variável de ambiente que contém a chave secreta da AWS, também armazenada nos secrets....
+        
