@@ -2,7 +2,7 @@ name: Deploy EKS Infrastructure  # Nome do workflow de GitHub Actions para o dep
 
 # O workflow será acionado quando houver um push na branch 'main'
 on:
-  push:
+  pull_request:
     branches:
       - main
 
